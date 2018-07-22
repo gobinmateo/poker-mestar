@@ -1,49 +1,62 @@
 import React from 'react';
 import axios from 'axios';
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:8080');
 
 export default class Register extends React.Component {
 
     constructor() {
         super();
+
         this.state = {
-            email: '',
-            password: ''
+            message: '',
+            messages: [],
         };
     }
 
-    handleEmailChange = (e) => {
-        this.setState({ email: e.target.value });
+    componentDidMount() {
+        socket.on('CHANGE_COLOR', (color) => {
+            document.body.style.backgroundColor = color;
+        });
+        socket.on('RECEIVE_MESSAGE', (data) => {
+            alert(`New message: ${data.message}`);
+            this.setState({messages: data.messages});
+        });
     };
 
-    handlePasswordChange = (e) => {
-        this.setState({ password: e.target.value });
+    handleMessageChange = (e) => {
+        this.setState({ message: e.target.value });
     };
 
-    handleSubmit = async () => {
-        const connection = await axios.create({
-            baseURL: 'http://localhost:8080/'
+    sendMessage = async () => {
+        await this.setState({messages: [...this.state.messages, this.state.message]});
+        socket.emit('SEND_MESSAGE', {
+            message: this.state.message, messages: this.state.messages
         });
-        const response = await connection.post('/', {
-            email: this.state.email,
-            password: this.state.password
-        });
-        console.log(response);
+        await this.setState({message: ''});
+    };
+
+    handleColorChange = () => {
+        socket.emit('CHANGE_COLOR', 'red');
     };
 
     render() {
         return (
             <div>
                 <input
-                    onChange={(e) => this.handleEmailChange(e)}
-                    type="email"
-                    placeholder="Email"
+                    onChange={this.handleMessageChange}
+                    placeholder="Message"
+                    value={this.state.message}
                 />
-                <input
-                    onChange={(e) => this.handlePasswordChange(e)}
-                    type="password"
-                    placeholder="Password"
-                />
-                <button onClick={this.handleSubmit}> Submit </button>
+                <button onClick={this.handleColorChange}> Change color </button>
+                <button onClick={this.sendMessage}> Send message </button>
+                <br/>
+                {this.state.messages.map((msg, i) => {
+                    return (
+                        <div key={i}> {msg} </div>
+                    )
+                })}
             </div>
         )
     }
